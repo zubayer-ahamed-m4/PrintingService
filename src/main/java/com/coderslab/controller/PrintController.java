@@ -3,10 +3,14 @@
  */
 package com.coderslab.controller;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
@@ -23,7 +27,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
@@ -42,29 +45,43 @@ import com.coderslab.service.StudentService;
 public class PrintController {
 
 	private static final Logger logger = LoggerFactory.getLogger(PrintController.class);
-	private static final String XSL_TEMPLATE = "";
+	private static final String XSL_TEMPLATE = "student.xsl";
 
 	@Autowired
 	private PrintingService printingService;
 	@Autowired
 	private StudentService studentService;
 
-	@GetMapping("/print")
-	public ResponseEntity<byte[]> doPrint() {
+	@RequestMapping
+	public ResponseEntity<byte[]> doPrint(HttpServletRequest request) {
 		String message;
 		HttpHeaders headers = new HttpHeaders();
 		headers.setContentType(new MediaType("text", "html"));
 		headers.add("X-Content-Type-Options", "nosniff");
 
+		StringBuilder template = null;
+		try {
+			template = new StringBuilder(this.getClass().getClassLoader().getResource("static").toURI().getPath())
+					.append(File.separator).append("xsl").append(File.separator)
+					.append(XSL_TEMPLATE);
+		} catch (URISyntaxException e) {
+			logger.error(e.getMessage(), e);
+		}
+		if (template == null) {
+			message = "No Template found";
+			return new ResponseEntity<>(message.getBytes(), headers, HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+
 		byte[] byt = null;
 		ByteArrayOutputStream out = null;
 
 		Student student = studentService.getStudents().stream().findFirst().orElse(null);
+		logger.info("{}", student);
 		try {
 			String xml = parseXMLString(student);
 			Document doc = getDomSourceForXML(xml);
-			out = printingService.transfromToPDFBytes(doc, XSL_TEMPLATE);
-		} catch (JAXBException | TransformerException e) {
+			out = printingService.transfromToPDFBytes(doc, template.toString(), request);
+		} catch (JAXBException | TransformerException | MalformedURLException  e) {
 			logger.error(e.getMessage(), e);
 		}
 
@@ -73,7 +90,7 @@ public class PrintController {
 			byt = message.getBytes();
 		} else {
 			byt = out.toByteArray();
-			headers.setContentType(new MediaType("application", "txt"));
+			headers.setContentType(new MediaType("application", "pdf"));
 		}
 
 		return new ResponseEntity<>(byt, headers, HttpStatus.OK);

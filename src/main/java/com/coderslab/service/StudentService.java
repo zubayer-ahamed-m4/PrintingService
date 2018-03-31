@@ -26,24 +26,17 @@ public class StudentService {
 			student.setId(i);
 			student.setName("name" + i);
 			student.setDob(new Date());
-			student.setAddresses(getAddress());
+
+			List<Address> list = new ArrayList<>();
+			for (int j = 1; j <= 3; j++) {
+				Address address = new Address();
+				address.setAddressId(j);
+				address.setHouseNo("dhaka");
+				list.add(address);
+			}
+			student.setAddresses(list);
+			students.add(student);
 		}
 		return students;
-	}
-
-	public List<Address> getAddress() {
-		List<Address> addresses = new ArrayList<>();
-		for (int i = 1; i <= 5; i++) {
-			Address address = new Address();
-			address.setAddressId(i);
-			address.setCity("dhaka");
-			address.setDist("comilla");
-			address.setHouseNo("615");
-			address.setPo("Dashpara");
-			address.setPs("Daudkandi");
-			address.setRoadNo("1236");
-			addresses.add(address);
-		}
-		return addresses;
 	}
 }
